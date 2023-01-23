@@ -211,10 +211,13 @@ class Vector3:
         )
 
     def project_onto(self,*, plane_unit_normal:Vector3) -> Vector3:
-        projection = self.dot(plane_unit_normal)
-        return self - plane_unit_normal * projection
+        distance_to_plane = self.dot(plane_unit_normal)
+        return self - plane_unit_normal * distance_to_plane
     
     def rotate_about(self, *, axis_unit:Vector3, by_radians:float) -> Vector3:
-        perpendicular = self.cross(axis_unit)
-        return perpendicular*math.cos(by_radians) + perpendicular*math.sin(by_radians)
+        distance_to_plane = self.dot(axis_unit)
+        projection_vector = axis_unit * distance_to_plane
+        projected =  self - projection_vector
+        projected_perpendicular = projected.cross(axis_unit)
+        return projected*math.cos(by_radians) + projected_perpendicular*math.sin(by_radians) + projection_vector
 
