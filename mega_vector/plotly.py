@@ -1,6 +1,6 @@
 import numpy as np
 import plotly.graph_objects as go
-
+from typing import Optional
 from ._Vector3 import Vector3
 
 def trace_Vector3_list(vectors:list[Vector3]):
@@ -22,35 +22,31 @@ def trace_Vector3_list(vectors:list[Vector3]):
 
 
 def mesh_arrow(
-        vector         : Vector3,
+        tip            : Vector3,
+        base           : Optional[Vector3] = None,
         ARROW_LENGTH   : float = 0.1,
         ARROW_DIAMETER : float = 0.1,
         RESOLUTION     : int   =   5,
-    ):
-    
+    ) -> go.Mesh3d:
+    if base is None:
+        base = Vector3()
+    vector = tip - base
     # basis vectors
     bx, by = (bz := vector.unit()).create_orthogonal_duff()
 
     angles = np.linspace(0, np.pi*2, RESOLUTION, endpoint=False)
-    
+    base_circle = (
+        + np.array(bx) * np.cos(angles)[:, np.newaxis]
+        + np.array(by) * np.sin(angles)[:, np.newaxis]
+    ) * 0.02
+    neck = base_circle + vector - bz*0.2
+    flange = base_circle * 3 + vector - bz*0.2
+
     coords = np.concatenate([
-        # base
-        (
-            np.array(bx) * np.cos(angles)[:, np.newaxis]
-            + np.array(by) * np.sin(angles)[:, np.newaxis]
-        ) * 0.02,
-        # neck
-        (
-            np.array(bx) * np.cos(angles)[:, np.newaxis]
-            + np.array(by) * np.sin(angles)[:, np.newaxis]
-        ) * 0.02 + vector - bz*0.2,
-        # flange
-        (
-            np.array(bx) * np.cos(angles)[:, np.newaxis]
-            + np.array(by) * np.sin(angles)[:, np.newaxis]
-        ) * 0.06 + vector - bz*0.2,
-        # tip
-        [np.array(vector)]
+        np.array(base)+base_circle,
+        np.array(base)+neck,
+        np.array(base)+flange,
+        [np.array(tip)]
     ])
     indexes = np.concatenate([
         np.arange(0,len(angles)*3).reshape((3,-1)),
@@ -77,10 +73,26 @@ def mesh_arrow(
         triangle_index_coordinates[...,0],
         triangle_index_coordinates[...,1]
     ]
-
-
-    #return coords, triangle_indexes
+    
     return go.Mesh3d(
         **dict(zip("xyz",coords.transpose())),
         **dict(zip("ijk",triangle_indexes.transpose()))
+    )
+
+def mesh_plane(unit_normal:Vector3, base:Optional[Vector3]=None, size:float=1.0):
+    basis_0, basis_1 = unit_normal.create_orthogonal_duff()
+    if base is None:
+        base = Vector3()
+    base_np = np.array(base)
+    coords = np.array([
+        np.array(-basis_0 + -basis_1),
+        np.array(-basis_0 +  basis_1),
+        np.array( basis_0 +  basis_1),
+        np.array( basis_0 + -basis_1),
+    ])*0.5*size + base_np[np.newaxis, :]
+    triangle_indexes = np.array([[0,1,2],[0,2,3]])
+    return go.Mesh3d(
+        **dict(zip("xyz",coords.transpose())),
+        **dict(zip("ijk",triangle_indexes.transpose())),
+        opacity=0.25
     )
